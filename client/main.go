@@ -1,243 +1,125 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"log"
+	"net"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
+// add a text view for instructions and debug Info
+// make a lua config
+
 func main() {
+
 	app := tview.NewApplication()
 
-	// Room list on the left
-	roomList := tview.NewList().
-		AddItem("General", "Main chat room", 'g', nil).
-		AddItem("Random", "Random talks", 'r', nil).
-		AddItem("Tech", "Tech discussions", 't', nil).
-		AddItem("Music", "Music room", 'm', nil)
-	roomList.SetBorder(true).SetTitle(" Rooms ")
-
-	// Chat display
-	chatView := tview.NewTextView().
-		SetDynamicColors(true).
-		SetChangedFunc(func() { app.Draw() })
-	chatView.SetBorder(true).SetTitle(" Chat ")
-
-	// Chat input
-	chatInput := tview.NewInputField().
-		SetLabel("Message: ").
-		SetFieldBackgroundColor(tcell.ColorBlack).
-		SetFieldTextColor(tcell.ColorWhite)
-
-	chatInput.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
-			msg := chatInput.GetText()
-			if len(msg) > 0 {
-				fmt.Fprintf(chatView, "[yellow]You:[-] %s\n", msg)
-				chatView.ScrollToEnd()
-				chatInput.SetText("")
-			}
-		}
-	})
-
-	// Right side: chatView + chatInput stacked vertically
-	chatFlex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(chatView, 0, 3, false).
-		AddItem(chatInput, 3, 1, true)
-
-	// Whole layout: rooms list on left, chat on right
-	mainFlex := tview.NewFlex().
-		AddItem(roomList, 20, 1, true). // 20 cols fixed width for room list
-		AddItem(chatFlex, 0, 4, false)  // chat area takes rest
-
-	// Login form (simplified for this example)
-	form := tview.NewForm().
-		AddInputField("Username", "", 20, nil, nil).
-		AddPasswordField("Password", "", 20, '*', nil).
-		AddButton("Login", func() {
-			// Show main chat screen on login
-			app.SetRoot(mainFlex, true)
-			app.SetFocus(chatInput)
+	// LOGIN PAGE
+	loginPage := tview.NewForm().
+		AddInputField(" Username: ", "", 16, nil, nil).
+		AddPasswordField(" Password: ", "", 16, '*', nil).
+		AddButton(" Login ", func() {
+			// do something when you click this
 		}).
-		AddButton("Quit", func() {
+		AddButton(" Quit ", func() {
 			app.Stop()
 		})
+	loginPage.SetBorder(true).SetTitle(" Login Page ")
 
-	form.SetBorder(true).SetTitle(" Login ").SetTitleAlign(tview.AlignLeft)
+	// TEXT AREA
+	inputArea := tview.NewTextArea().SetPlaceholder("Enter a new message here...")
+	inputArea.SetBorder(true).SetTitle(" Write Here ")
 
-	// Start app on login form
-	if err := app.SetRoot(form, true).EnableMouse(true).Run(); err != nil {
+	// ROOM LIST
+	roomList := tview.NewList().
+		AddItem("Room 1", "Some explanatory text", 'a', nil).
+		AddItem("Room 2", "Some explanatory text", 'b', nil).
+		AddItem("Room 3", "Some explanatory text", 'c', nil).
+		AddItem("Room 4", "Some explanatory text", 'd', nil).
+		AddItem("Quit", "Press to exit", 'q', func() {
+			app.Stop()
+		})
+	roomList.SetBorder(true).SetTitle(" Your Rooms ")
+
+	// TEXT VIEW
+	textView := tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(true).
+		SetWordWrap(true).
+		SetChangedFunc(func() {
+			app.Draw()
+		})
+	textView.SetBorder(true).SetTitle(" Messages here ")
+
+	sendButton := tview.NewButton(" Send Message ")
+	sendButton.SetSelectedFunc(func() {
+		// display text
+		// sendt to the client
+		// clear text box
+	})
+
+	// DISPLAY ITEMS
+	textArea := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(textView, 0, 3, false).
+		AddItem(inputArea, 0, 1, false).
+		AddItem(sendButton, 1, 0, false)
+
+	rowFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(loginPage, 0, 1, true).
+		AddItem(roomList, 0, 1, false).
+		AddItem(textArea, 0, 1, false)
+
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		log.Fatal(err) // fix err handling
+	}
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	// start reading for incoming input
+	go func() {
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				log.Fatal(err) // fix err handling
+			}
+
+			var incomingPost struct {
+				Username string `json:"username"`
+				Body     string `json:"body"`
+				Date     string `json:"date"`
+				Status   string `json:"status"`
+			}
+
+			if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
+				log.Fatal(err)
+			}
+
+			if incomingPost.Status != "recieved" {
+				continue
+			}
+
+			// do somethign with incomingPost
+			fmt.Fprintf(textView, "%s ", incomingPost.Body)
+		}
+	}()
+
+	if err := app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
-}
 
-// func main() {
-//
-// 	conn, err := net.Dial("tcp", "localhost:9000")
-// 	if err != nil {
-// 		log.Fatal("could not connect to server")
-// 	}
-// 	defer conn.Close()
-//
-// 	p := tea.NewProgram(initialModel(conn))
-// 	if _, err := p.Run(); err != nil {
-// 		log.Fatal(err)
-// 	}
-//
-// }
-//
-// type model struct {
-// 	conn        net.Conn
-// 	viewport    viewport.Model
-// 	messages    []string
-// 	textarea    textarea.Model
-// 	senderStyle lipgloss.Style
-// 	err         error
-// }
-//
-// type errMsg error
-//
-// type postMsg struct {
-// 	Username string `json:"username"`
-// 	Body     string `json:"body"`
-// 	Date     string `json:"date"`
-// }
-//
-// const gap = "\n\n"
-//
-// func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-// 	var (
-// 		tiCmd tea.Cmd
-// 		vpCmd tea.Cmd
-// 	)
-//
-// 	m.textarea, tiCmd = m.textarea.Update(msg)
-// 	m.viewport, vpCmd = m.viewport.Update(msg)
-//
-// 	switch msg := msg.(type) {
-// 	// I added here
-// 	case postMsg:
-// 		//m.messages = append(m.messages, m.senderStyle.Render("You: ")+msg.Body)
-// 		m.messages = append(m.messages, m.senderStyle.Render(msg.Username+" "+msg.Date+" "+msg.Body))
-// 		m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
-// 		m.viewport.GotoBottom()
-// 		return m, readConn(m.conn)
-// 	// I added above here
-// 	case tea.WindowSizeMsg:
-// 		m.viewport.Width = msg.Width
-// 		m.textarea.SetWidth(msg.Width)
-// 		m.viewport.Height = msg.Height - m.textarea.Height() - lipgloss.Height(gap)
-//
-// 		if len(m.messages) > 0 {
-// 			// Wrap content before setting it.
-// 			m.viewport.SetContent(lipgloss.NewStyle().Width(m.viewport.Width).Render(strings.Join(m.messages, "\n")))
-// 		}
-// 		m.viewport.GotoBottom()
-// 	case tea.KeyMsg:
-// 		switch msg.Type {
-// 		case tea.KeyCtrlC, tea.KeyEsc:
-// 			fmt.Println(m.textarea.Value())
-// 			return m, tea.Quit
-// 		case tea.KeyEnter:
-//
-// 			if err := json.NewEncoder(m.conn).Encode(map[string]string{
-// 				"method":   "POST",
-// 				"username": "Default user",
-// 				"body":     m.textarea.Value(),
-// 			}); err != nil {
-// 				return m, tea.Quit // err later
-// 			}
-//
-// 			m.textarea.Reset()
-//
-// 		}
-// 	case errMsg:
-// 		m.err = msg
-// 		return m, nil
-// 	}
-//
-// 	return m, tea.Batch(tiCmd, vpCmd)
-// }
-//
-// // Initial Cmd for it to run
-// func (m model) Init() tea.Cmd {
-// 	return tea.Batch(
-// 		textarea.Blink,
-// 		readConn(m.conn),
-// 	)
-// }
-//
-// // Manages how the model will be displayed
-// func (m model) View() string {
-// 	return fmt.Sprintf(
-// 		"%s%s%s",
-// 		m.viewport.View(),
-// 		gap,
-// 		m.textarea.View(),
-// 	)
-// }
-//
-// // Gets the model
-// func initialModel(conn net.Conn) model {
-//
-// 	// sets up the text area
-// 	ta := textarea.New()
-// 	ta.Placeholder = "Send a message..."
-// 	ta.Focus()
-// 	ta.Prompt = "┃ "
-// 	ta.CharLimit = 280
-// 	ta.SetWidth(30)
-// 	ta.SetHeight(3)
-// 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle() // no cursor line styling
-// 	ta.ShowLineNumbers = false
-// 	ta.KeyMap.InsertNewline.SetEnabled(false)
-//
-// 	// sets up the place with the messages
-// 	vp := viewport.New(30, 5)
-// 	vp.SetContent(`Welcome to the chat room!
-// Type a message and press Enter to send.`)
-//
-// 	return model{
-// 		textarea:    ta,
-// 		viewport:    vp,
-// 		messages:    []string{},
-// 		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
-// 		conn:        conn,
-// 		err:         nil,
-// 	}
-// }
-//
-// func readConn(conn net.Conn) tea.Cmd {
-// 	return func() tea.Msg {
-//
-// 		reader := bufio.NewReader(conn)
-//
-// 		line, err := reader.ReadString('\n')
-// 		if err != nil {
-// 			return errMsg(err)
-// 		}
-//
-// 		var incomingPost struct {
-// 			Username string `json:"username"`
-// 			Body     string `json:"body"`
-// 			Date     string `json:"date"`
-// 			Status   string `json:"status"`
-// 		}
-//
-// 		if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
-// 			return errMsg(err)
-// 		}
-//
-// 		if incomingPost.Status != "recieved" {
-// 			return nil
-// 		}
-//
-// 		return postMsg{
-// 			Username: incomingPost.Username,
-// 			Body:     incomingPost.Body,
-// 			Date:     incomingPost.Date,
-// 		}
-// 	}
-// }
+	// ------------- Start the connection -----------------------------------
+
+	// 			if err := json.NewEncoder(m.conn).Encode(map[string]string{
+	// 				"method":   "POST",
+	// 				"username": "Default user",
+	// 				"body":     m.textarea.Value(),
+	// 			}); err != nil {
+	// 				return m, tea.Quit // err later
+	// 			}
+
+}

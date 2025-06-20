@@ -80,6 +80,10 @@ func (s *server) handleConn(conn net.Conn) {
 
 			for user := range s.users {
 
+				if user == conn {
+					continue
+				}
+
 				if err := json.NewEncoder(user).Encode(map[string]string{
 					"status":   "recieved",
 					"username": req.Username,
