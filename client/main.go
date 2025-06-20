@@ -15,6 +15,11 @@ import (
 
 func main() {
 
+	var (
+		username string
+		password string
+	)
+
 	app := tview.NewApplication()
 
 	conn, err := net.Dial("tcp", "localhost:9000")
@@ -26,14 +31,14 @@ func main() {
 	// LOGIN PAGE
 	loginPage := tview.NewForm().
 		AddInputField(" Username: ", "", 16, nil, nil).
-		AddPasswordField(" Password: ", "", 16, '*', nil).
+		AddPasswordField(" Password: ", "", 16, '*', nil)
+	loginPage.
 		AddButton(" Login ", func() {
-			// do something when you click this
+			username = loginPage.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
+			password = loginPage.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
 		}).
-		AddButton(" Quit ", func() {
-			app.Stop()
-		})
-	loginPage.SetBorder(true).SetTitle(" Login Page ")
+		SetBorder(true).
+		SetTitle(" Login Page ")
 
 	// TEXT AREA
 	inputArea := tview.NewTextArea().SetPlaceholder("Enter a new message here...")
@@ -65,9 +70,10 @@ func main() {
 		fmt.Fprintf(textView, "YOU: \n%s\n", inputArea.GetText())
 
 		if err := json.NewEncoder(conn).Encode(map[string]string{
-			"method": "POST",
-			"body":   inputArea.GetText(),
-			//"username": "Default user",
+			"method":   "POST",
+			"body":     inputArea.GetText(),
+			"username": username,
+			"password": password,
 		}); err != nil {
 			log.Fatal(err)
 		}
@@ -112,7 +118,7 @@ func main() {
 			}
 
 			// do somethign with incomingPost
-			fmt.Fprintf(textView, "%s ", incomingPost.Body)
+			fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
 		}
 	}()
 
