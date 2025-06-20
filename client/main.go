@@ -10,75 +10,65 @@ import (
 func main() {
 	app := tview.NewApplication()
 
-	var layout *tview.Flex
-	var box *tview.Flex
-	var form *tview.Form
+	// Room list on the left
+	roomList := tview.NewList().
+		AddItem("General", "Main chat room", 'g', nil).
+		AddItem("Random", "Random talks", 'r', nil).
+		AddItem("Tech", "Tech discussions", 't', nil).
+		AddItem("Music", "Music room", 'm', nil)
+	roomList.SetBorder(true).SetTitle(" Rooms ")
 
-	// Chat display (read-only text view)
+	// Chat display
 	chatView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetChangedFunc(func() { app.Draw() })
 	chatView.SetBorder(true).SetTitle(" Chat ")
 
-	// Chat input (single line input field)
+	// Chat input
 	chatInput := tview.NewInputField().
 		SetLabel("Message: ").
 		SetFieldBackgroundColor(tcell.ColorBlack).
 		SetFieldTextColor(tcell.ColorWhite)
 
-	// Send message on Enter
 	chatInput.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			msg := chatInput.GetText()
 			if len(msg) > 0 {
 				fmt.Fprintf(chatView, "[yellow]You:[-] %s\n", msg)
-				chatView.ScrollToEnd() // scroll to bottom
+				chatView.ScrollToEnd()
 				chatInput.SetText("")
 			}
 		}
 	})
 
-	// Box holds chatView + chatInput vertically
-	box = tview.NewFlex().
+	// Right side: chatView + chatInput stacked vertically
+	chatFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(chatView, 0, 3, false). // chatView takes 3 parts
-		AddItem(chatInput, 3, 1, true)  // chatInput 3 lines height
+		AddItem(chatView, 0, 3, false).
+		AddItem(chatInput, 3, 1, true)
 
-	box.SetBorder(true).
-		SetBorderAttributes(tcell.AttrBold).
-		SetTitle("[green:black:bu] Welcome to My Chat! ").
-		SetTitleAlign(tview.AlignCenter)
+	// Whole layout: rooms list on left, chat on right
+	mainFlex := tview.NewFlex().
+		AddItem(roomList, 20, 1, true). // 20 cols fixed width for room list
+		AddItem(chatFlex, 0, 4, false)  // chat area takes rest
 
-	form = tview.NewForm().
+	// Login form (simplified for this example)
+	form := tview.NewForm().
 		AddInputField("Username", "", 20, nil, nil).
 		AddPasswordField("Password", "", 20, '*', nil).
 		AddButton("Login", func() {
-			layout.ResizeItem(box, 0, 1)  // box expands fully
-			layout.ResizeItem(form, 0, 0) // form shrinks
-
+			// Show main chat screen on login
+			app.SetRoot(mainFlex, true)
 			app.SetFocus(chatInput)
 		}).
 		AddButton("Quit", func() {
 			app.Stop()
 		})
 
-	form.
-		SetLabelColor(tcell.ColorLimeGreen).
-		SetFieldTextColor(tcell.ColorCoral).
-		SetFieldBackgroundColor(tcell.ColorBlack).
-		SetButtonTextColor(tcell.ColorLimeGreen).
-		SetButtonBackgroundColor(tcell.ColorBlack).
-		SetBorder(true).
-		SetTitle(" Login ").
-		SetTitleColor(tcell.ColorLimeGreen).
-		SetTitleAlign(tview.AlignLeft)
+	form.SetBorder(true).SetTitle(" Login ").SetTitleAlign(tview.AlignLeft)
 
-	layout = tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(box, 0, 0, false).
-		AddItem(form, 0, 1, true)
-
-	if err := app.SetRoot(layout, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
+	// Start app on login form
+	if err := app.SetRoot(form, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
 }
