@@ -17,6 +17,12 @@ func main() {
 
 	app := tview.NewApplication()
 
+	conn, err := net.Dial("tcp", "localhost:9000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
 	// LOGIN PAGE
 	loginPage := tview.NewForm().
 		AddInputField(" Username: ", "", 16, nil, nil).
@@ -56,9 +62,17 @@ func main() {
 
 	sendButton := tview.NewButton(" Send Message ")
 	sendButton.SetSelectedFunc(func() {
-		// display text
-		// sendt to the client
-		// clear text box
+		fmt.Fprintf(textView, "YOU: \n%s\n", inputArea.GetText())
+
+		if err := json.NewEncoder(conn).Encode(map[string]string{
+			"method": "POST",
+			"body":   inputArea.GetText(),
+			//"username": "Default user",
+		}); err != nil {
+			log.Fatal(err)
+		}
+
+		inputArea.SetText("", true)
 	})
 
 	// DISPLAY ITEMS
@@ -71,12 +85,6 @@ func main() {
 		AddItem(loginPage, 0, 1, true).
 		AddItem(roomList, 0, 1, false).
 		AddItem(textArea, 0, 1, false)
-
-	conn, err := net.Dial("tcp", "localhost:9000")
-	if err != nil {
-		log.Fatal(err) // fix err handling
-	}
-	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
 
@@ -111,15 +119,5 @@ func main() {
 	if err := app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
-
-	// ------------- Start the connection -----------------------------------
-
-	// 			if err := json.NewEncoder(m.conn).Encode(map[string]string{
-	// 				"method":   "POST",
-	// 				"username": "Default user",
-	// 				"body":     m.textarea.Value(),
-	// 			}); err != nil {
-	// 				return m, tea.Quit // err later
-	// 			}
 
 }
