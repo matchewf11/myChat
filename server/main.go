@@ -11,13 +11,17 @@ import (
 )
 
 type server struct {
-	users map[net.Conn]bool
-	lock  sync.Mutex
+	users    map[net.Conn]bool
+	userAuth map[string]string
+	lock     sync.Mutex
 }
 
 func main() {
 
-	serv := &server{users: make(map[net.Conn]bool)}
+	serv := &server{
+		users:    make(map[net.Conn]bool),
+		userAuth: make(map[string]string),
+	}
 
 	ln, err := net.Listen("tcp", ":9000")
 	if err != nil {
@@ -62,6 +66,7 @@ func (s *server) handleConn(conn net.Conn) {
 		var req struct {
 			Method   string `json:"method"`
 			Username string `json:"username"`
+			Password string `json:"password"`
 			Body     string `json:"body"`
 		}
 
@@ -74,16 +79,49 @@ func (s *server) handleConn(conn net.Conn) {
 		}
 
 		switch req.Method {
+		case "AUTH":
+
+			if req.Username == "" || req.Password == "" {
+				if err := json.NewEncoder(conn).Encode(map[string]string{
+					"status": "error",
+					"body":   "does not allow for empty fields",
+				}); err != nil {
+					fmt.Println("error sending to user")
+				}
+				break
+			}
+
+			val, contains := s.userAuth[req.Username]
+
+			if !contains {
+				s.userAuth[req.Username] = req.Password
+				break
+			}
+
+			if val != req.Password {
+				if err := json.NewEncoder(conn).Encode(map[string]string{
+					"status": "error",
+					"body":   "invalid password",
+				}); err != nil {
+					fmt.Println("error sending to user")
+				}
+				break
+			}
+
+			if err := json.NewEncoder(conn).Encode(map[string]string{
+				"status": "success",
+				"body":   "logged in",
+			}); err != nil {
+				fmt.Println("error sending to user")
+			}
+
 		case "POST":
-
+			// MAKE SURE THE PASS WORD MARTCHES THE USERNAME
 			s.lock.Lock()
-
 			for user := range s.users {
-
 				if user == conn {
 					continue
 				}
-
 				if err := json.NewEncoder(user).Encode(map[string]string{
 					"status":   "recieved",
 					"username": req.Username,
@@ -92,20 +130,15 @@ func (s *server) handleConn(conn net.Conn) {
 				}); err != nil {
 					fmt.Println("error sending to user")
 				}
-
 			}
-
 			s.lock.Unlock()
-
 			fmt.Println(req.Body)
-
 			if err := json.NewEncoder(conn).Encode(map[string]string{
 				"status": "success",
 				"body":   "you sent a post request",
 			}); err != nil {
 				fmt.Println("could not send sucess message")
 			}
-
 		default:
 			if err := json.NewEncoder(conn).Encode(map[string]string{
 				"status": "error",
