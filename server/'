@@ -97,12 +97,6 @@ func (s *server) handleConn(conn net.Conn) {
 
 			if !contains {
 				s.userAuth[req.Username] = req.Password
-				if err := json.NewEncoder(conn).Encode(map[string]string{
-					"status": "loggedin",
-					"body":   "logged in",
-				}); err != nil {
-					fmt.Println("error sending to user")
-				}
 				break
 			}
 
