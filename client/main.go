@@ -13,64 +13,55 @@ import (
 // add a text view for instructions and debug Info
 // make a lua config
 
+type view struct {
+	username string
+	password string
+	app      *tview.Application
+	conn     net.Conn
+}
+
 func main() {
+	view := initView()
+	defer view.conn.Close()
 
-	var (
-		username string
-		password string
-	)
+	loginPage := view.getLoginPage()
+	roomList := view.getRoomList()
+	textFlex, inputArea, textView := view.genTextArea()
 
-	app := tview.NewApplication()
+	rowFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
+		AddItem(loginPage, 0, 1, true).
+		AddItem(roomList, 0, 1, false).
+		AddItem(textFlex, 0, 1, false)
 
+	go view.readConn(inputArea, textView)
+
+	if err := view.app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
+		panic(err)
+	}
+}
+
+func initView() *view {
 	conn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	return &view{
+		app:  tview.NewApplication(),
+		conn: conn,
+	}
+}
 
-	// LOGIN PAGE
-	loginPage := tview.NewForm().
-		AddInputField(" Username: ", "", 16, nil, nil).
-		AddPasswordField(" Password: ", "", 16, '*', nil)
-	loginPage.
-		AddButton(" Login ", func() {
+func (v *view) genTextArea() (*tview.Flex, *tview.TextArea, *tview.TextView) {
 
-			username = loginPage.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
-			password = loginPage.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
-
-			if err := json.NewEncoder(conn).Encode(map[string]string{
-				"method":   "AUTH",
-				"username": username,
-				"password": password,
-			}); err != nil {
-				log.Fatal(err)
-			}
-		}).
-		SetBorder(true).
-		SetTitle(" Login Page ")
-
-	// TEXT AREA
 	inputArea := tview.NewTextArea().SetPlaceholder("Enter a new message here...")
 	inputArea.SetBorder(true).SetTitle(" Write Here ")
 
-	// ROOM LIST
-	roomList := tview.NewList().
-		AddItem("Room 1", "Some explanatory text", 'a', nil).
-		AddItem("Room 2", "Some explanatory text", 'b', nil).
-		AddItem("Room 3", "Some explanatory text", 'c', nil).
-		AddItem("Room 4", "Some explanatory text", 'd', nil).
-		AddItem("Quit", "Press to exit", 'q', func() {
-			app.Stop()
-		})
-	roomList.SetBorder(true).SetTitle(" Your Rooms ")
-
-	// TEXT VIEW
 	textView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
 		SetWordWrap(true).
 		SetChangedFunc(func() {
-			app.Draw()
+			v.app.Draw()
 		})
 	textView.SetBorder(true).SetTitle(" Messages here ")
 
@@ -78,11 +69,11 @@ func main() {
 	sendButton.SetSelectedFunc(func() {
 		fmt.Fprintf(textView, "YOU: \n%s\n", inputArea.GetText())
 
-		if err := json.NewEncoder(conn).Encode(map[string]string{
+		if err := json.NewEncoder(v.conn).Encode(map[string]string{
 			"method":   "POST",
 			"body":     inputArea.GetText(),
-			"username": username,
-			"password": password,
+			"username": v.username,
+			"password": v.password,
 		}); err != nil {
 			log.Fatal(err)
 		}
@@ -90,54 +81,81 @@ func main() {
 		inputArea.SetText("", true)
 	})
 
-	// DISPLAY ITEMS
-	textArea := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(textView, 0, 3, false).
-		AddItem(inputArea, 0, 1, false).
-		AddItem(sendButton, 1, 0, false)
+	return tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(textView, 0, 3, false).
+			AddItem(inputArea, 0, 1, false).
+			AddItem(sendButton, 1, 0, false),
+		inputArea, textView
+}
 
-	rowFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(loginPage, 0, 1, true).
-		AddItem(roomList, 0, 1, false).
-		AddItem(textArea, 0, 1, false)
+func (v *view) getLoginPage() *tview.Form {
+	loginPage := tview.NewForm().
+		AddInputField(" Username: ", "", 16, nil, nil).
+		AddPasswordField(" Password: ", "", 16, '*', nil)
+	loginPage.
+		AddButton(" Login ", func() {
 
-	reader := bufio.NewReader(conn)
+			v.username = loginPage.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
+			v.password = loginPage.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
 
-	// start reading for incoming input
-	go func() {
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				log.Fatal(err) // fix err handling
-			}
-
-			var incomingPost struct {
-				Username string `json:"username"`
-				Body     string `json:"body"`
-				Date     string `json:"date"`
-				Status   string `json:"status"`
-			}
-
-			if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
+			if err := json.NewEncoder(v.conn).Encode(map[string]string{
+				"method":   "AUTH",
+				"username": v.username,
+				"password": v.password,
+			}); err != nil {
 				log.Fatal(err)
 			}
+		}).
+		SetBorder(true).
+		SetTitle(" Login Page ")
+	return loginPage
+}
 
-			if incomingPost.Status == "loggedin" {
-				app.SetFocus(inputArea)
-				continue
-			}
+func (v *view) getRoomList() *tview.List {
+	roomList := tview.NewList().
+		AddItem("Room 1", "Some explanatory text", 'a', nil).
+		AddItem("Room 2", "Some explanatory text", 'b', nil).
+		AddItem("Room 3", "Some explanatory text", 'c', nil).
+		AddItem("Room 4", "Some explanatory text", 'd', nil).
+		AddItem("Quit", "Press to exit", 'q', func() {
+			v.app.Stop()
+		})
+	roomList.SetBorder(true).SetTitle(" Your Rooms ")
+	return roomList
+}
 
-			if incomingPost.Status != "recieved" {
-				continue
-			}
+func (v *view) readConn(inputArea *tview.TextArea, textView *tview.TextView) {
 
-			// do somethign with incomingPost
-			fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
+	reader := bufio.NewReader(v.conn)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			log.Fatal(err) // fix err handling
 		}
-	}()
 
-	if err := app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
-		panic(err)
+		var incomingPost struct {
+			Username string `json:"username"`
+			Body     string `json:"body"`
+			Date     string `json:"date"`
+			Status   string `json:"status"`
+		}
+
+		if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
+			log.Fatal(err)
+		}
+
+		if incomingPost.Status == "loggedin" {
+			v.app.SetFocus(inputArea)
+			continue
+		}
+
+		if incomingPost.Status != "recieved" {
+			continue
+		}
+
+		// do somethign with incomingPost
+		fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
 	}
 
 }
