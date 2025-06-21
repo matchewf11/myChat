@@ -34,8 +34,17 @@ func main() {
 		AddPasswordField(" Password: ", "", 16, '*', nil)
 	loginPage.
 		AddButton(" Login ", func() {
+
 			username = loginPage.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
 			password = loginPage.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
+
+			if err := json.NewEncoder(conn).Encode(map[string]string{
+				"method":   "AUTH",
+				"username": username,
+				"password": password,
+			}); err != nil {
+				log.Fatal(err)
+			}
 		}).
 		SetBorder(true).
 		SetTitle(" Login Page ")
@@ -111,6 +120,11 @@ func main() {
 
 			if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
 				log.Fatal(err)
+			}
+
+			if incomingPost.Status == "loggedin" {
+				app.SetFocus(inputArea)
+				continue
 			}
 
 			if incomingPost.Status != "recieved" {
