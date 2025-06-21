@@ -10,9 +10,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-// add a text view for instructions and debug Info
-// make a lua config
-
 type view struct {
 	username string
 	password string
@@ -24,19 +21,19 @@ func main() {
 	view := initView()
 	defer view.conn.Close()
 
-	loginPage := view.getLoginPage()
+	loginForm := view.getLoginForm()
 	roomList := view.getRoomList()
 	textFlex, inputArea, textView := view.genTextArea()
 
 	rowFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(loginPage, 0, 1, true).
+		AddItem(loginForm, 0, 1, true).
 		AddItem(roomList, 0, 1, false).
 		AddItem(textFlex, 0, 1, false)
 
-	go view.readConn(inputArea, textView)
+	go view.readConn(inputArea, textView, loginForm.GetFormItemByLabel(" Login Page Info ").(*tview.TextView))
 
 	if err := view.app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -88,27 +85,30 @@ func (v *view) genTextArea() (*tview.Flex, *tview.TextArea, *tview.TextView) {
 		inputArea, textView
 }
 
-func (v *view) getLoginPage() *tview.Form {
-	loginPage := tview.NewForm().
+func (v *view) getLoginForm() *tview.Form {
+
+	loginForm := tview.NewForm().
+		AddTextView(" Login Page Info ", "This is the info", 0, 0, true, true).
 		AddInputField(" Username: ", "", 16, nil, nil).
 		AddPasswordField(" Password: ", "", 16, '*', nil)
-	loginPage.
-		AddButton(" Login ", func() {
 
-			v.username = loginPage.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
-			v.password = loginPage.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
+	loginForm.AddButton(" Login ", func() {
 
-			if err := json.NewEncoder(v.conn).Encode(map[string]string{
-				"method":   "AUTH",
-				"username": v.username,
-				"password": v.password,
-			}); err != nil {
-				log.Fatal(err)
-			}
-		}).
+		v.username = loginForm.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
+		v.password = loginForm.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
+
+		if err := json.NewEncoder(v.conn).Encode(map[string]string{
+			"method":   "AUTH",
+			"username": v.username,
+			"password": v.password,
+		}); err != nil {
+			log.Fatal(err)
+		}
+	}).
 		SetBorder(true).
 		SetTitle(" Login Page ")
-	return loginPage
+
+	return loginForm
 }
 
 func (v *view) getRoomList() *tview.List {
@@ -124,7 +124,7 @@ func (v *view) getRoomList() *tview.List {
 	return roomList
 }
 
-func (v *view) readConn(inputArea *tview.TextArea, textView *tview.TextView) {
+func (v *view) readConn(inputArea *tview.TextArea, textView *tview.TextView, loginInfo *tview.TextView) {
 
 	reader := bufio.NewReader(v.conn)
 
@@ -145,7 +145,13 @@ func (v *view) readConn(inputArea *tview.TextArea, textView *tview.TextView) {
 			log.Fatal(err)
 		}
 
+		if incomingPost.Status == "login fail" {
+			loginInfo.SetText(incomingPost.Body)
+			continue
+		}
+
 		if incomingPost.Status == "loggedin" {
+			loginInfo.SetText(incomingPost.Body)
 			v.app.SetFocus(inputArea)
 			continue
 		}
@@ -154,7 +160,6 @@ func (v *view) readConn(inputArea *tview.TextArea, textView *tview.TextView) {
 			continue
 		}
 
-		// do somethign with incomingPost
 		fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
 	}
 

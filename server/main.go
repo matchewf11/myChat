@@ -85,7 +85,7 @@ func (s *server) handleConn(conn net.Conn) {
 
 			if req.Username == "" || req.Password == "" {
 				if err := json.NewEncoder(conn).Encode(map[string]string{
-					"status": "error",
+					"status": "login fail",
 					"body":   "does not allow for empty fields",
 				}); err != nil {
 					fmt.Println("error sending to user")
@@ -110,7 +110,7 @@ func (s *server) handleConn(conn net.Conn) {
 
 			if val != req.Password {
 				if err := json.NewEncoder(conn).Encode(map[string]string{
-					"status": "error",
+					"status": "login fail",
 					"body":   "invalid password",
 				}); err != nil {
 					fmt.Println("error sending to user")
