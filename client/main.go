@@ -18,7 +18,9 @@ type view struct {
 }
 
 func main() {
+
 	view := initView()
+
 	defer view.conn.Close()
 
 	loginForm := view.getLoginForm()
@@ -27,10 +29,45 @@ func main() {
 
 	rowFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(loginForm, 0, 1, true).
-		AddItem(roomList, 0, 1, false).
-		AddItem(textFlex, 0, 1, false)
+		AddItem(roomList, 0, 0, false).
+		AddItem(textFlex, 0, 0, false)
 
-	go view.readConn(inputArea, textView, loginForm.GetFormItemByLabel(" Login Page Info ").(*tview.TextView))
+	go func() {
+		reader := bufio.NewReader(view.conn)
+		loginInfo := loginForm.GetFormItemByLabel(" Login Page Info ").(*tview.TextView)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				log.Fatal(err) // fix err handling
+			}
+			var incomingPost struct {
+				Username string `json:"username"`
+				Body     string `json:"body"`
+				Date     string `json:"date"`
+				Status   string `json:"status"`
+			}
+			if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
+				log.Fatal(err)
+			}
+			if incomingPost.Status == "login fail" {
+				loginInfo.SetText(incomingPost.Body)
+				continue
+			}
+
+			if incomingPost.Status == "loggedin" {
+				loginInfo.SetText(incomingPost.Body)
+				rowFlex.ResizeItem(loginForm, 0, 0).ResizeItem(roomList, 0, 1).ResizeItem(textFlex, 0, 3)
+				view.app.SetFocus(inputArea)
+				continue
+			}
+
+			if incomingPost.Status != "recieved" {
+				continue
+			}
+
+			fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
+		}
+	}()
 
 	if err := view.app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
 		log.Fatal(err)
@@ -122,45 +159,4 @@ func (v *view) getRoomList() *tview.List {
 		})
 	roomList.SetBorder(true).SetTitle(" Your Rooms ")
 	return roomList
-}
-
-func (v *view) readConn(inputArea *tview.TextArea, textView *tview.TextView, loginInfo *tview.TextView) {
-
-	reader := bufio.NewReader(v.conn)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err) // fix err handling
-		}
-
-		var incomingPost struct {
-			Username string `json:"username"`
-			Body     string `json:"body"`
-			Date     string `json:"date"`
-			Status   string `json:"status"`
-		}
-
-		if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
-			log.Fatal(err)
-		}
-
-		if incomingPost.Status == "login fail" {
-			loginInfo.SetText(incomingPost.Body)
-			continue
-		}
-
-		if incomingPost.Status == "loggedin" {
-			loginInfo.SetText(incomingPost.Body)
-			v.app.SetFocus(inputArea)
-			continue
-		}
-
-		if incomingPost.Status != "recieved" {
-			continue
-		}
-
-		fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
-	}
-
 }
