@@ -11,9 +11,10 @@ import (
 )
 
 type server struct {
+	lock     sync.Mutex
 	users    map[net.Conn]bool
 	userAuth map[string]string
-	lock     sync.Mutex
+	userTime map[string]string
 }
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 	serv := &server{
 		users:    make(map[net.Conn]bool),
 		userAuth: make(map[string]string),
+		userTime: make(map[string]string),
 	}
 
 	ln, err := net.Listen("tcp", ":9000")
@@ -93,10 +95,14 @@ func (s *server) handleConn(conn net.Conn) {
 				break
 			}
 
+			s.lock.Lock()
 			val, contains := s.userAuth[req.Username]
+			s.lock.Unlock()
 
 			if !contains {
+				s.lock.Lock()
 				s.userAuth[req.Username] = req.Password
+				s.lock.Unlock()
 				if err := json.NewEncoder(conn).Encode(map[string]string{
 					"status": "loggedin",
 					"body":   "logged in",
@@ -105,8 +111,6 @@ func (s *server) handleConn(conn net.Conn) {
 				}
 				break
 			}
-
-			fmt.Println("val is not equal to the password")
 
 			if val != req.Password {
 				if err := json.NewEncoder(conn).Encode(map[string]string{
@@ -118,18 +122,34 @@ func (s *server) handleConn(conn net.Conn) {
 				break
 			}
 
-			fmt.Println("I am sending loggedin")
+			// check if user has logged in before
+			// if they have save the date and send it back
+			// put the new date
+
+			var date string = ""
+
+			s.lock.Lock()
+
+			lastLogin, contains := s.userTime[req.Username]
+			if contains {
+				date = lastLogin
+			}
+			s.userTime[req.Username] = time.Now().Format("2006-01-02 15:04:05")
+			s.lock.Unlock()
 
 			if err := json.NewEncoder(conn).Encode(map[string]string{
 				"status": "loggedin",
 				"body":   "logged in",
+				"date":   date,
 			}); err != nil {
 				fmt.Println("error sending to user")
 			}
 
 		case "POST":
 
+			s.lock.Lock()
 			val, has := s.userAuth[req.Username]
+			s.lock.Unlock()
 
 			if !has {
 				if err := json.NewEncoder(conn).Encode(map[string]string{

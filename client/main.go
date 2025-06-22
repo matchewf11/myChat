@@ -62,6 +62,14 @@ func main() {
 					rowFlex.ResizeItem(textFlex, 0, 3)
 					view.app.SetFocus(inputArea)
 				})
+				// set the new date incoming here
+
+				if incomingPost.Date != "" {
+					textView.SetText("Last Login: " + incomingPost.Date + "\n")
+				} else {
+					textView.SetText("Welcome First Time User\n")
+				}
+
 				continue
 			}
 
