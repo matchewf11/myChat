@@ -55,16 +55,13 @@ func main() {
 			}
 
 			if incomingPost.Status == "loggedin" {
-
 				loginInfo.SetText(incomingPost.Body)
-
 				view.app.QueueUpdateDraw(func() {
 					rowFlex.ResizeItem(loginForm, 0, 0)
 					rowFlex.ResizeItem(roomList, 0, 1)
 					rowFlex.ResizeItem(textFlex, 0, 3)
 					view.app.SetFocus(inputArea)
 				})
-
 				continue
 			}
 
