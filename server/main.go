@@ -91,6 +91,13 @@ func (s *server) handleConn(conn net.Conn) {
 		switch req.Method {
 		case "AUTH":
 
+			type sentMessage struct {
+				Status   string    `json:"status"`
+				Body     string    `json:"body"`
+				Date     string    `json:"date"`
+				Messages []message `json:"messages"`
+			}
+
 			fmt.Println(req.Username, req.Password)
 
 			if req.Username == "" || req.Password == "" {
@@ -112,12 +119,13 @@ func (s *server) handleConn(conn net.Conn) {
 				s.userAuth[req.Username] = req.Password
 				s.lock.Unlock()
 
-				// TODO: ALso send old messages here
+				newMess := sentMessage{
+					Status:   "loggedin",
+					Body:     "logged in",
+					Messages: s.messages,
+				}
 
-				if err := json.NewEncoder(conn).Encode(map[string]string{
-					"status": "loggedin",
-					"body":   "logged in",
-				}); err != nil {
+				if err := json.NewEncoder(conn).Encode(newMess); err != nil {
 					fmt.Println("error sending to user")
 				}
 				break
@@ -144,21 +152,16 @@ func (s *server) handleConn(conn net.Conn) {
 			s.userTime[req.Username] = time.Now().Format("2006-01-02 15:04:05")
 			s.lock.Unlock()
 
-			jsonMessages, err := json.Marshal(s.messages)
-			if err != nil {
-				log.Fatal("can't marshal jsonMessages")
-			}
-
 			fmt.Println(s.messages)
 
-			// TODO: properly format the messages part of the json
+			newMess := sentMessage{
+				Status:   "loggedin",
+				Body:     "logged in",
+				Date:     date,
+				Messages: s.messages,
+			}
 
-			if err := json.NewEncoder(conn).Encode(map[string]string{
-				"status":   "loggedin",
-				"body":     "logged in",
-				"date":     date,
-				"messages": string(jsonMessages),
-			}); err != nil {
+			if err := json.NewEncoder(conn).Encode(newMess); err != nil {
 				fmt.Println("error sending to user")
 			}
 
