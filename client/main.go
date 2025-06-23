@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/rivo/tview"
 )
@@ -17,7 +18,15 @@ type view struct {
 	conn     net.Conn
 }
 
+var debugFile *os.File
+
 func main() {
+
+	file, err := os.Create("debug.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	debugFile = file
 
 	view := initView()
 
@@ -32,21 +41,35 @@ func main() {
 		AddItem(roomList, 0, 0, false).
 		AddItem(textFlex, 0, 0, false)
 
+	view.app.SetFocus(loginForm.GetFormItemByLabel(" Username: "))
+
 	go func() {
 		reader := bufio.NewReader(view.conn)
 		loginInfo := loginForm.GetFormItemByLabel(" Login Page Info ").(*tview.TextView)
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
+				debugFile.WriteString("error reading a string from line")
 				log.Fatal(err) // fix err handling
 			}
-			var incomingPost struct {
-				Username string `json:"username"`
-				Body     string `json:"body"`
-				Date     string `json:"date"`
-				Status   string `json:"status"`
+
+			type message struct {
+				Date   string `json:"date"`
+				Author string `json:"author"`
+				Body   string `json:"body"`
 			}
+
+			var incomingPost struct {
+				Username string    `json:"username"`
+				Body     string    `json:"body"`
+				Date     string    `json:"date"`
+				Status   string    `json:"status"`
+				Messages []message `json:"messages"`
+			}
+
+			debugFile.WriteString("raw line: " + line + "\n")
 			if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
+				debugFile.WriteString("cant unamrshal incoming post")
 				log.Fatal(err)
 			}
 			if incomingPost.Status == "login fail" {
@@ -62,12 +85,15 @@ func main() {
 					rowFlex.ResizeItem(textFlex, 0, 3)
 					view.app.SetFocus(inputArea)
 				})
-				// set the new date incoming here
 
 				if incomingPost.Date != "" {
 					textView.SetText("Last Login: " + incomingPost.Date + "\n")
 				} else {
 					textView.SetText("Welcome First Time User\n")
+				}
+
+				for _, mes := range incomingPost.Messages {
+					fmt.Fprintf(textView, "%s: %s\n%s\n\n", mes.Author, mes.Date, mes.Body)
 				}
 
 				continue
@@ -82,6 +108,7 @@ func main() {
 	}()
 
 	if err := view.app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
+		debugFile.WriteString("issue setting up app")
 		log.Fatal(err)
 	}
 }
@@ -89,6 +116,7 @@ func main() {
 func initView() *view {
 	conn, err := net.Dial("tcp", "localhost:9000")
 	if err != nil {
+		debugFile.WriteString("issue making a connection")
 		log.Fatal(err)
 	}
 	return &view{
@@ -121,6 +149,7 @@ func (v *view) genTextArea() (*tview.Flex, *tview.TextArea, *tview.TextView) {
 			"username": v.username,
 			"password": v.password,
 		}); err != nil {
+			debugFile.WriteString("issue sending post to connection")
 			log.Fatal(err)
 		}
 
@@ -151,6 +180,7 @@ func (v *view) getLoginForm() *tview.Form {
 			"username": v.username,
 			"password": v.password,
 		}); err != nil {
+			debugFile.WriteString("err sending auth request")
 			log.Fatal(err)
 		}
 	}).

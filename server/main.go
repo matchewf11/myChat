@@ -15,6 +15,13 @@ type server struct {
 	users    map[net.Conn]bool
 	userAuth map[string]string
 	userTime map[string]string
+	messages []message
+}
+
+type message struct {
+	Body   string `json:"body"`
+	Author string `json:"author"`
+	Date   string `json:"date"`
 }
 
 func main() {
@@ -23,6 +30,7 @@ func main() {
 		users:    make(map[net.Conn]bool),
 		userAuth: make(map[string]string),
 		userTime: make(map[string]string),
+		messages: make([]message, 0),
 	}
 
 	ln, err := net.Listen("tcp", ":9000")
@@ -103,6 +111,9 @@ func (s *server) handleConn(conn net.Conn) {
 				s.lock.Lock()
 				s.userAuth[req.Username] = req.Password
 				s.lock.Unlock()
+
+				// TODO: ALso send old messages here
+
 				if err := json.NewEncoder(conn).Encode(map[string]string{
 					"status": "loggedin",
 					"body":   "logged in",
@@ -122,10 +133,6 @@ func (s *server) handleConn(conn net.Conn) {
 				break
 			}
 
-			// check if user has logged in before
-			// if they have save the date and send it back
-			// put the new date
-
 			var date string = ""
 
 			s.lock.Lock()
@@ -137,10 +144,20 @@ func (s *server) handleConn(conn net.Conn) {
 			s.userTime[req.Username] = time.Now().Format("2006-01-02 15:04:05")
 			s.lock.Unlock()
 
+			jsonMessages, err := json.Marshal(s.messages)
+			if err != nil {
+				log.Fatal("can't marshal jsonMessages")
+			}
+
+			fmt.Println(s.messages)
+
+			// TODO: properly format the messages part of the json
+
 			if err := json.NewEncoder(conn).Encode(map[string]string{
-				"status": "loggedin",
-				"body":   "logged in",
-				"date":   date,
+				"status":   "loggedin",
+				"body":     "logged in",
+				"date":     date,
+				"messages": string(jsonMessages),
 			}); err != nil {
 				fmt.Println("error sending to user")
 			}
@@ -171,8 +188,14 @@ func (s *server) handleConn(conn net.Conn) {
 				break
 			}
 
-			// MAKE SURE THE PASS WORD MARTCHES THE USERNAME
 			s.lock.Lock()
+
+			s.messages = append(s.messages, message{
+				Body:   req.Body,
+				Date:   time.Now().Format("2006-01-02 15:04:05"),
+				Author: req.Username,
+			})
+
 			for user := range s.users {
 				if user == conn {
 					continue
