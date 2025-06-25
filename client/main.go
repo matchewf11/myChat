@@ -1,35 +1,19 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
 	"log"
-	"net"
-	"os"
 
 	"github.com/rivo/tview"
 )
 
-type view struct {
-	username string
-	password string
-	app      *tview.Application
-	conn     net.Conn
-}
-
-var debugFile *os.File
+const (
+	StatusLoginFail = "login fail"
+	StatusLoggedIn  = "loggedin"
+)
 
 func main() {
 
-	file, err := os.Create("debug.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	debugFile = file
-
 	view := initView()
-
 	defer view.conn.Close()
 
 	loginForm := view.getLoginForm()
@@ -41,164 +25,9 @@ func main() {
 		AddItem(roomList, 0, 0, false).
 		AddItem(textFlex, 0, 0, false)
 
-	view.app.SetFocus(loginForm.GetFormItemByLabel(" Username: "))
-
-	go func() {
-		reader := bufio.NewReader(view.conn)
-		loginInfo := loginForm.GetFormItemByLabel(" Login Page Info ").(*tview.TextView)
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				debugFile.WriteString("error reading a string from line")
-				log.Fatal(err) // fix err handling
-			}
-
-			type message struct {
-				Date   string `json:"date"`
-				Author string `json:"author"`
-				Body   string `json:"body"`
-			}
-
-			var incomingPost struct {
-				Username string    `json:"username"`
-				Body     string    `json:"body"`
-				Date     string    `json:"date"`
-				Status   string    `json:"status"`
-				Messages []message `json:"messages"`
-			}
-
-			debugFile.WriteString("raw line: " + line + "\n")
-			if err := json.Unmarshal([]byte(line), &incomingPost); err != nil {
-				debugFile.WriteString("cant unamrshal incoming post")
-				log.Fatal(err)
-			}
-			if incomingPost.Status == "login fail" {
-				loginInfo.SetText(incomingPost.Body)
-				continue
-			}
-
-			if incomingPost.Status == "loggedin" {
-				loginInfo.SetText(incomingPost.Body)
-				view.app.QueueUpdateDraw(func() {
-					rowFlex.ResizeItem(loginForm, 0, 0)
-					rowFlex.ResizeItem(roomList, 0, 1)
-					rowFlex.ResizeItem(textFlex, 0, 3)
-					view.app.SetFocus(inputArea)
-				})
-
-				if incomingPost.Date != "" {
-					textView.SetText("Last Login: " + incomingPost.Date + "\n")
-				} else {
-					textView.SetText("Welcome First Time User\n")
-				}
-
-				for _, mes := range incomingPost.Messages {
-					fmt.Fprintf(textView, "%s: %s\n%s\n\n", mes.Author, mes.Date, mes.Body)
-				}
-
-				continue
-			}
-
-			if incomingPost.Status != "recieved" {
-				continue
-			}
-
-			fmt.Fprintf(textView, "%s: %s\n%s\n", incomingPost.Username, incomingPost.Date, incomingPost.Body)
-		}
-	}()
+	go listenServer(view, loginForm, textView, inputArea, rowFlex, roomList, textFlex)
 
 	if err := view.app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
-		debugFile.WriteString("issue setting up app")
 		log.Fatal(err)
 	}
-}
-
-func initView() *view {
-	conn, err := net.Dial("tcp", "localhost:9000")
-	if err != nil {
-		debugFile.WriteString("issue making a connection")
-		log.Fatal(err)
-	}
-	return &view{
-		app:  tview.NewApplication(),
-		conn: conn,
-	}
-}
-
-func (v *view) genTextArea() (*tview.Flex, *tview.TextArea, *tview.TextView) {
-
-	inputArea := tview.NewTextArea().SetPlaceholder("Enter a new message here...")
-	inputArea.SetBorder(true).SetTitle(" Write Here ")
-
-	textView := tview.NewTextView().
-		SetDynamicColors(true).
-		SetRegions(true).
-		SetWordWrap(true).
-		SetChangedFunc(func() {
-			v.app.Draw()
-		})
-	textView.SetBorder(true).SetTitle(" Messages here ")
-
-	sendButton := tview.NewButton(" Send Message ")
-	sendButton.SetSelectedFunc(func() {
-		fmt.Fprintf(textView, "YOU: \n%s\n", inputArea.GetText())
-
-		if err := json.NewEncoder(v.conn).Encode(map[string]string{
-			"method":   "POST",
-			"body":     inputArea.GetText(),
-			"username": v.username,
-			"password": v.password,
-		}); err != nil {
-			debugFile.WriteString("issue sending post to connection")
-			log.Fatal(err)
-		}
-
-		inputArea.SetText("", true)
-	})
-
-	return tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(textView, 0, 3, false).
-			AddItem(inputArea, 0, 1, false).
-			AddItem(sendButton, 1, 0, false),
-		inputArea, textView
-}
-
-func (v *view) getLoginForm() *tview.Form {
-
-	loginForm := tview.NewForm().
-		AddTextView(" Login Page Info ", "This is the info", 0, 0, true, true).
-		AddInputField(" Username: ", "", 16, nil, nil).
-		AddPasswordField(" Password: ", "", 16, '*', nil)
-
-	loginForm.AddButton(" Login ", func() {
-
-		v.username = loginForm.GetFormItemByLabel(" Username: ").(*tview.InputField).GetText()
-		v.password = loginForm.GetFormItemByLabel(" Password: ").(*tview.InputField).GetText()
-
-		if err := json.NewEncoder(v.conn).Encode(map[string]string{
-			"method":   "AUTH",
-			"username": v.username,
-			"password": v.password,
-		}); err != nil {
-			debugFile.WriteString("err sending auth request")
-			log.Fatal(err)
-		}
-	}).
-		SetBorder(true).
-		SetTitle(" Login Page ")
-
-	return loginForm
-}
-
-func (v *view) getRoomList() *tview.List {
-	roomList := tview.NewList().
-		AddItem("Room 1", "Some explanatory text", 'a', nil).
-		AddItem("Room 2", "Some explanatory text", 'b', nil).
-		AddItem("Room 3", "Some explanatory text", 'c', nil).
-		AddItem("Room 4", "Some explanatory text", 'd', nil).
-		AddItem("Quit", "Press to exit", 'q', func() {
-			v.app.Stop()
-		})
-	roomList.SetBorder(true).SetTitle(" Your Rooms ")
-	return roomList
 }

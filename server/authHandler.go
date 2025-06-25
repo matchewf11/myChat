@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"time"
 )
@@ -12,12 +13,20 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 	}
 
 	s.lock.Lock()
+
+	fmt.Println("ALl the usernames:")
+	for key := range s.passwordMap {
+		fmt.Println(key)
+	}
+
 	val, exists := s.passwordMap[username]
 
 	if !exists {
 		s.passwordMap[username] = password
+		s.timeMap[username] = time.Now().Format("2006-01-02 15:04:05")
 		s.lock.Unlock()
 		loginSuccess(conn, "", s.postsList)
+		fmt.Println("username does not exist")
 		return
 	}
 
@@ -30,6 +39,8 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 	lastLogin := s.timeMap[username]
 	s.timeMap[username] = time.Now().Format("2006-01-02 15:04:05")
 	s.lock.Unlock()
+
+	fmt.Println(lastLogin)
 
 	loginSuccess(conn, lastLogin, s.postsList)
 }
