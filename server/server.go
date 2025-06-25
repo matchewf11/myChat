@@ -14,9 +14,7 @@ type server struct {
 	lock      sync.Mutex
 	usersMap  map[net.Conn]bool
 	postsList []post
-	//passwordMap map[string]string
-	timeMap map[string]string
-	db      *sql.DB
+	db        *sql.DB
 }
 
 type post struct {
@@ -27,9 +25,7 @@ type post struct {
 
 func newServer(db *sql.DB) *server {
 	return &server{
-		usersMap: make(map[net.Conn]bool),
-		//passwordMap: make(map[string]string),
-		timeMap:   make(map[string]string),
+		usersMap:  make(map[net.Conn]bool),
 		postsList: make([]post, 0),
 		db:        db,
 	}

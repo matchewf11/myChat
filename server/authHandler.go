@@ -39,12 +39,11 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 	case NoUsername:
 
 		_, err := s.db.Exec(`
-			INSERT INTO users (username, password) VALUES (?, ?)`,
-			username, password)
+			INSERT INTO users (username, password, last_login) VALUES (?, ?, ?)`,
+			username, password, time.Now().Format("2006-01-02 15:04:05"))
 		if err != nil {
 			connErr(conn, err.Error())
 		}
-		s.timeMap[username] = time.Now().Format("2006-01-02 15:04:05")
 		loginSuccess(conn, "", s.postsList)
 		return
 
@@ -55,9 +54,30 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 
 	case Valid:
 
-		lastLogin := s.timeMap[username]
-		s.timeMap[username] = time.Now().Format("2006-01-02 15:04:05")
+		var lastLogin string
+
+		err := s.db.QueryRow(`
+			SELECT last_login
+			FROM users
+			WHERE username = ?
+			`, username).Scan(&lastLogin)
+		if err != nil {
+			connErr(conn, err.Error())
+			return
+		}
+
 		loginSuccess(conn, lastLogin, s.postsList)
+
+		_, err = s.db.Exec(`
+			UPDATE users
+			SET last_login = ?
+			WHERE username = ?
+			`, time.Now().Format("2006-01-02 15:04:05"))
+		if err != nil {
+			connErr(conn, err.Error())
+			return
+		}
+
 		return
 
 	default:
