@@ -25,10 +25,10 @@ CREATE TABLE IF NOT EXISTS users (
 --     id INTEGER PRIMARY KEY AUTOINCREMENT,
 --     author INTEGER NOT NULL,
 --     body TEXT,
---     room INTEGER NOT NULL,
 --     time TEXT NOT NULL,
---     FOREIGN KEY (author) REFERENCES users(id) ON DELETE CASCADE,
---     FOREIGN KEY (room) REFERENCES rooms(id) ON DELETE CASCADE
+-- room INTEGER NOT NULL,
+-- FOREIGN KEY (author) REFERENCES users(id) ON DELETE CASCADE,
+-- FOREIGN KEY (room) REFERENCES rooms(id) ON DELETE CASCADE
 -- );
 
 -- CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author);
