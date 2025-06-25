@@ -19,16 +19,12 @@ func initDb() *sql.DB {
 		log.Fatal(err)
 	}
 
-	filePath := "./db/createTables.sql"
-
-	contentBytes, err := os.ReadFile(filePath)
+	contentBytes, err := os.ReadFile(".db/createTables.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fileContentString := string(contentBytes)
-
-	_, err = db.Exec(fileContentString)
+	_, err = db.Exec(string(contentBytes))
 	if err != nil {
 		log.Fatal(err)
 	}

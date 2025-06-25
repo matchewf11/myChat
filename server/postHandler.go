@@ -6,22 +6,27 @@ import (
 )
 
 func (s *server) handlePost(conn net.Conn, username, password, body string) {
+
 	if username == "" || password == "" || body == "" {
 		connErr(conn, "username, password, and body must not be empty")
 		return
 	}
 
-	s.lock.Lock()
-	storedPass, ok := s.passwordMap[username]
-	s.lock.Unlock()
+	var valid bool
+	err := s.db.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 
+			FROM users 
+			WHERE username = ? AND password = ?
+		)`, username, password).Scan(&valid)
 
-	if !ok {
-		connErr(conn, "invalid username")
+	if err != nil {
+		connErr(conn, err.Error())
 		return
 	}
 
-	if storedPass != password {
-		connErr(conn, "invalid password")
+	if !valid {
+		connErr(conn, "invalid username or password")
 		return
 	}
 
