@@ -5,7 +5,6 @@ import (
 	"net"
 )
 
-// Starting point of the server
 func main() {
 
 	ln, err := net.Listen("tcp", ":9000")
@@ -14,9 +13,12 @@ func main() {
 	}
 	defer ln.Close()
 
-	fmt.Println("Server listening @ :9000")
+	db := initDb()
+	defer db.Close()
 
-	serv := newServer()
+	serv := newServer(db)
+
+	fmt.Println("Server listening @ :9000")
 
 	for {
 		if conn, err := ln.Accept(); err != nil {
