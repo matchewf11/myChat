@@ -9,7 +9,7 @@ import (
 
 func initDb() *sql.DB {
 
-	db, err := sql.Open("sqlite3", "./db/myChatDb")
+	db, err := sql.Open("sqlite3", "db/myChatDb")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -19,7 +19,7 @@ func initDb() *sql.DB {
 		log.Fatal(err)
 	}
 
-	contentBytes, err := os.ReadFile(".db/createTables.sql")
+	contentBytes, err := os.ReadFile("db/createTables.sql")
 	if err != nil {
 		log.Fatal(err)
 	}
