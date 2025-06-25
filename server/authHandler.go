@@ -43,8 +43,17 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 			username, password, time.Now().Format("2006-01-02 15:04:05"))
 		if err != nil {
 			connErr(conn, err.Error())
+			return
 		}
-		loginSuccess(conn, "", s.postsList)
+
+		postList, err := s.getPosts()
+		if err != nil {
+			connErr(conn, err.Error())
+			return
+		}
+
+		loginSuccess(conn, "", postList)
+
 		return
 
 	case WrongPass:
@@ -66,7 +75,13 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 			return
 		}
 
-		loginSuccess(conn, lastLogin, s.postsList)
+		postList, err := s.getPosts()
+		if err != nil {
+			connErr(conn, err.Error())
+			return
+		}
+
+		loginSuccess(conn, lastLogin, postList)
 
 		_, err = s.db.Exec(`
 			UPDATE users

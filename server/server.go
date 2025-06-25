@@ -11,10 +11,9 @@ import (
 )
 
 type server struct {
-	lock      sync.Mutex
-	usersMap  map[net.Conn]bool
-	postsList []post
-	db        *sql.DB
+	lock     sync.Mutex
+	usersMap map[net.Conn]bool
+	db       *sql.DB
 }
 
 type post struct {
@@ -25,9 +24,8 @@ type post struct {
 
 func newServer(db *sql.DB) *server {
 	return &server{
-		usersMap:  make(map[net.Conn]bool),
-		postsList: make([]post, 0),
-		db:        db,
+		usersMap: make(map[net.Conn]bool),
+		db:       db,
 	}
 }
 

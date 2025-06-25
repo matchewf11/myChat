@@ -21,15 +21,15 @@ CREATE TABLE IF NOT EXISTS users (
 --     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 -- );
 
--- CREATE TABLE IF NOT EXISTS posts (
---     id INTEGER PRIMARY KEY AUTOINCREMENT,
---     author INTEGER NOT NULL,
---     body TEXT,
---     time TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    body TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    author INTEGER NOT NULL,
+    FOREIGN KEY (author) REFERENCES users(id) ON DELETE CASCADE
 -- room INTEGER NOT NULL,
--- FOREIGN KEY (author) REFERENCES users(id) ON DELETE CASCADE,
 -- FOREIGN KEY (room) REFERENCES rooms(id) ON DELETE CASCADE
--- );
+);
 
 -- CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author);
 -- CREATE INDEX IF NOT EXISTS idx_posts_room ON posts(room);

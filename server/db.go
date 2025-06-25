@@ -31,3 +31,35 @@ func initDb() *sql.DB {
 
 	return db
 }
+
+func (s *server) getPosts() ([]post, error) {
+
+	postList := make([]post, 0)
+
+	postQry, err := s.db.Query(`
+			SELECT posts.body, users.username, posts.created_at
+			FROM posts
+			JOIN users ON posts.author = users.id
+			ORDER BY posts.created_at
+		`)
+	if err != nil {
+		return nil, err
+	}
+	defer postQry.Close()
+
+	for postQry.Next() {
+		var body, author, created_at string
+		err = postQry.Scan(&body, &author, &created_at)
+		if err != nil {
+			return nil, err
+		}
+		postList = append(postList, post{
+			Body:   body,
+			Author: author,
+			Date:   created_at,
+		})
+	}
+
+	return postList, nil
+
+}

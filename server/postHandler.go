@@ -30,15 +30,16 @@ func (s *server) handlePost(conn net.Conn, username, password, body string) {
 		return
 	}
 
-	currTime := time.Now().Format("2006-01-02 15:04:05")
-	newPost := post{
-		Body:   body,
-		Date:   currTime,
-		Author: username,
+	_, err = s.db.Exec(`
+		INSERT INTO posts (body, author)
+		VALUES (?, (SELECT id FROM users WHERE username = ?))
+		`, body, username)
+	if err != nil {
+		connErr(conn, err.Error())
+		return
 	}
 
 	s.lock.Lock()
-	s.postsList = append(s.postsList, newPost)
 
 	conns := make([]net.Conn, 0, len(s.usersMap))
 	for user := range s.usersMap {
@@ -53,7 +54,7 @@ func (s *server) handlePost(conn net.Conn, username, password, body string) {
 			"status":   "received",
 			"username": username,
 			"body":     body,
-			"date":     currTime,
+			"date":     time.Now().Format("2006-01-02 15:04:05"),
 		})
 	}
 
