@@ -76,27 +76,29 @@ func (v *view) getRoomList() (*tview.Flex, *tview.List) {
 
 	// TODO: need to add an add room button
 	// ROOM_ADD and ROOM_DEL
-
-	// add new button to create rooms
-	// or login to rooms
+	// login to rooms
 	// allow invites to room
-
 	// TODO: Dont need to have room password to delete room
+
+	inputAddRoomName := tview.NewInputField().SetFieldWidth(14)
+	inputAddRoomPass := tview.NewInputField().SetFieldWidth(14)
+	inputDelRoomName := tview.NewInputField().SetFieldWidth(14)
 
 	roomFormFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewTextView().SetText(" room name "), 1, 0, false).
-		AddItem(tview.NewInputField().SetFieldWidth(14), 1, 0, false).
+		AddItem(inputAddRoomName, 1, 0, false).
 		AddItem(tview.NewTextView().SetText(" room password "), 1, 0, false).
-		AddItem(tview.NewInputField().SetFieldWidth(14), 1, 0, false).
+		AddItem(inputAddRoomPass, 1, 0, false).
 		AddItem(tview.NewButton(" add room ").SetSelectedFunc(func() {
-			// send to the connection
-			// clear the fields
+			sendConn(v.conn, "ADD_ROOM", v.username, v.password, "", inputAddRoomName.GetText(), inputAddRoomPass.GetText())
+			inputAddRoomName.SetText("")
+			inputAddRoomPass.SetText("")
 		}), 1, 0, false).
 		AddItem(tview.NewTextView().SetText(" room name "), 1, 0, false).
-		AddItem(tview.NewInputField().SetFieldWidth(14), 1, 0, false).
+		AddItem(inputDelRoomName, 1, 0, false).
 		AddItem(tview.NewButton(" delete room ").SetSelectedFunc(func() {
-			// send to the connection
-			// clear the fields
+			sendConn(v.conn, "DEL_ROOM", v.username, v.password, "", inputDelRoomName.GetText(), "")
+			inputDelRoomName.SetText("")
 		}), 1, 0, false)
 
 	roomList := tview.NewList().
@@ -115,23 +117,3 @@ func (v *view) getRoomList() (*tview.Flex, *tview.List) {
 
 	return roomFlex, roomList
 }
-
-// 	Method   string `json:"method"`
-// 	Username string `json:"username"`
-// 	Password string `json:"password"`
-// 	RoomName string `json:"room_name"`
-// 	RoomPass string `json:"room_pass"`
-// 	Body     string `json:"body"`
-//
-// switch req.Method {
-// case "AUTH":
-// 	s.handleAuth(conn, req.Username, req.Password)
-// case "POST":
-// 	s.handlePost(conn, req.Username, req.Password, req.Body)
-// case "ADD_ROOM":
-// 	s.handleAddRoom(conn, req.Username, req.Password, req.RoomName, req.RoomPass)
-// case "DEL_ROOM":
-// 	s.handleDelRoom(conn, req.Username, req.Password, req.RoomName)
-// default:
-// 	connErr(conn, "invalid body")
-// }
