@@ -17,15 +17,15 @@ func main() {
 	defer view.conn.Close()
 
 	loginForm := view.getLoginForm()
-	roomList := view.getRoomList()
+	roomFlex, roomList := view.getRoomList()
 	textFlex, inputArea, textView := view.genTextArea()
 
 	rowFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(loginForm, 0, 1, true).
-		AddItem(roomList, 0, 0, false).
+		AddItem(roomFlex, 0, 0, false).
 		AddItem(textFlex, 0, 0, false)
 
-	go listenServer(view, loginForm, textView, inputArea, rowFlex, roomList, textFlex)
+	go listenServer(view, loginForm, textView, inputArea, rowFlex, roomList, textFlex, roomFlex)
 
 	if err := view.app.SetRoot(rowFlex, true).EnableMouse(true).Run(); err != nil {
 		log.Fatal(err)

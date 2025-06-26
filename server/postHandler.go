@@ -13,14 +13,12 @@ func (s *server) handlePost(conn net.Conn, username, password, body string) {
 	}
 
 	var valid bool
-	err := s.db.QueryRow(`
+	if err := s.db.QueryRow(`
 		SELECT EXISTS(
 			SELECT 1 
 			FROM users 
 			WHERE username = ? AND password = ?
-		)`, username, password).Scan(&valid)
-
-	if err != nil {
+		)`, username, password).Scan(&valid); err != nil {
 		connErr(conn, err.Error())
 		return
 	}
@@ -30,11 +28,10 @@ func (s *server) handlePost(conn net.Conn, username, password, body string) {
 		return
 	}
 
-	_, err = s.db.Exec(`
+	if _, err := s.db.Exec(`
 		INSERT INTO posts (body, author)
 		VALUES (?, (SELECT id FROM users WHERE username = ?))
-		`, body, username)
-	if err != nil {
+		`, body, username); err != nil {
 		connErr(conn, err.Error())
 		return
 	}
@@ -50,17 +47,18 @@ func (s *server) handlePost(conn net.Conn, username, password, body string) {
 	s.lock.Unlock()
 
 	for _, user := range conns {
-		sendJSON(user, map[string]string{
+		if err := sendJSON(user, map[string]string{
 			"status":   "received",
 			"username": username,
 			"body":     body,
 			"date":     time.Now().Format("2006-01-02 15:04:05"),
-		})
+		}); err != nil {
+			connErr(conn, err.Error())
+			return
+		}
 	}
-
 	sendJSON(conn, map[string]string{
 		"status": "sent",
 		"body":   "you sent a post request",
 	})
-
 }

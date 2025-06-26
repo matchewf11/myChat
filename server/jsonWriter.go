@@ -14,14 +14,16 @@ func connErr(conn net.Conn, body string) {
 	})
 }
 
-func sendJSON(conn net.Conn, data any) {
+func sendJSON(conn net.Conn, data any) error {
 	if err := json.NewEncoder(conn).Encode(data); err != nil {
 		fmt.Println("error sending to user")
+		return err
 	}
+	return nil
 }
 
-func loginSuccess(conn net.Conn, date string, posts []post) {
-	sendJSON(conn, struct {
+func loginSuccess(conn net.Conn, date string, posts []post) error {
+	if err := sendJSON(conn, struct {
 		Status   string `json:"status"`
 		Body     string `json:"body"`
 		Date     string `json:"date,omitempty"`
@@ -31,5 +33,8 @@ func loginSuccess(conn net.Conn, date string, posts []post) {
 		Body:     "logged in",
 		Date:     date,
 		Messages: posts,
-	})
+	}); err != nil {
+		return err
+	}
+	return nil
 }

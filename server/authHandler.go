@@ -6,19 +6,22 @@ import (
 	"time"
 )
 
+type userStatus int
+
 const (
-	NoUsername = 0
-	Valid      = 1
-	WrongPass  = 2
+	NoUsername userStatus = iota
+	Valid
+	WrongPass
 )
 
 func (s *server) handleAuth(conn net.Conn, username, password string) {
+
 	if username == "" || password == "" {
 		connErr(conn, "no empty fields allowed for username and password")
 		return
 	}
 
-	var userStatus int
+	var userStatus userStatus
 	err := s.db.QueryRow(`
 		SELECT
 		CASE
@@ -32,12 +35,9 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 		connErr(conn, err.Error())
 	}
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	switch userStatus {
 	case NoUsername:
-
+		// TODO: Fix this later
 		_, err := s.db.Exec(`
 			INSERT INTO users (username, password, last_login) VALUES (?, ?, ?)`,
 			username, password, time.Now().Format("2006-01-02 15:04:05"))
@@ -45,26 +45,21 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 			connErr(conn, err.Error())
 			return
 		}
-
 		postList, err := s.getPosts()
 		if err != nil {
 			connErr(conn, err.Error())
 			return
 		}
-
-		loginSuccess(conn, "", postList)
-
+		if err = loginSuccess(conn, "", postList); err != nil {
+			connErr(conn, err.Error())
+			return
+		}
 		return
-
 	case WrongPass:
-
 		connErr(conn, "invalid password")
 		return
-
 	case Valid:
-
 		var lastLogin string
-
 		err := s.db.QueryRow(`
 			SELECT last_login
 			FROM users
@@ -74,15 +69,15 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 			connErr(conn, err.Error())
 			return
 		}
-
 		postList, err := s.getPosts()
 		if err != nil {
 			connErr(conn, err.Error())
 			return
 		}
-
-		loginSuccess(conn, lastLogin, postList)
-
+		if err = loginSuccess(conn, lastLogin, postList); err != nil {
+			connErr(conn, err.Error())
+			return
+		}
 		_, err = s.db.Exec(`
 			UPDATE users
 			SET last_login = ?
@@ -92,11 +87,8 @@ func (s *server) handleAuth(conn net.Conn, username, password string) {
 			connErr(conn, err.Error())
 			return
 		}
-
 		return
-
 	default:
 		log.Fatal("This should never be reached")
 	}
-
 }

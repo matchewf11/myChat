@@ -10,12 +10,14 @@ import (
 	"github.com/rivo/tview"
 )
 
-func sendConn(conn net.Conn, method, username, password, body string) {
+func sendConn(conn net.Conn, method, username, password, body, roomName, roomPass string) {
 	if err := json.NewEncoder(conn).Encode(map[string]string{
-		"method":   method,
-		"username": username,
-		"password": password,
-		"body":     body,
+		"method":    method,
+		"username":  username,
+		"password":  password,
+		"room_name": roomName,
+		"room_pass": roomPass,
+		"body":      body,
 	}); err != nil {
 		log.Fatal(err)
 	}
@@ -29,6 +31,7 @@ func listenServer(
 	rowFlex *tview.Flex,
 	roomList *tview.List,
 	textFlex *tview.Flex,
+	roomFlex *tview.Flex,
 ) {
 
 	reader := bufio.NewReader(view.conn)
@@ -67,7 +70,7 @@ func listenServer(
 			loginInfo.SetText(incomingPost.Body)
 			view.app.QueueUpdateDraw(func() {
 				rowFlex.ResizeItem(loginForm, 0, 0)
-				rowFlex.ResizeItem(roomList, 0, 1)
+				rowFlex.ResizeItem(roomFlex, 0, 1)
 				rowFlex.ResizeItem(textFlex, 0, 3)
 				view.app.SetFocus(inputArea)
 			})

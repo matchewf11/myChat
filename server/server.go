@@ -38,6 +38,7 @@ func (s *server) handleConn(conn net.Conn) {
 	fmt.Printf("opened connection %v\n", conn)
 
 	defer func() {
+		// TODO: change last login to curr time
 		if r := recover(); r != nil {
 			log.Printf("recovered crashed go routine")
 		}
@@ -56,6 +57,8 @@ func (s *server) handleConn(conn net.Conn) {
 			Method   string `json:"method"`
 			Username string `json:"username"`
 			Password string `json:"password"`
+			RoomName string `json:"room_name"`
+			RoomPass string `json:"room_pass"`
 			Body     string `json:"body"`
 		}
 
@@ -69,6 +72,10 @@ func (s *server) handleConn(conn net.Conn) {
 			s.handleAuth(conn, req.Username, req.Password)
 		case "POST":
 			s.handlePost(conn, req.Username, req.Password, req.Body)
+		case "ADD_ROOM":
+			s.handleAddRoom(conn, req.Username, req.Password, req.RoomName, req.RoomPass)
+		case "DEL_ROOM":
+			s.handleDelRoom(conn, req.Username, req.Password, req.RoomName)
 		default:
 			connErr(conn, "invalid body")
 		}

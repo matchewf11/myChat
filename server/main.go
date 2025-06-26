@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 )
 
@@ -13,7 +14,10 @@ func main() {
 	}
 	defer ln.Close()
 
-	db := initDb()
+	db, err := initDb()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 	defer db.Close()
 
 	serv := newServer(db)

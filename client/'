@@ -88,16 +88,18 @@ func (v *view) getRoomList() (*tview.Flex, *tview.List) {
 		AddItem(tview.NewInputField().SetFieldWidth(14), 1, 0, false).
 		AddItem(tview.NewTextView().SetText(" room password "), 1, 0, false).
 		AddItem(tview.NewInputField().SetFieldWidth(14), 1, 0, false).
-		AddItem(tview.NewButton(" add room ").SetSelectedFunc(func() {
-			// send to the connection
-			// clear the fields
-		}), 1, 0, false).
+		AddItem(tview.NewButton(" add room "), 1, 0, false).
 		AddItem(tview.NewTextView().SetText(" room name "), 1, 0, false).
 		AddItem(tview.NewInputField().SetFieldWidth(14), 1, 0, false).
-		AddItem(tview.NewButton(" delete room ").SetSelectedFunc(func() {
-			// send to the connection
-			// clear the fields
-		}), 1, 0, false)
+		AddItem(tview.NewButton(" delete room "), 1, 0, false)
+
+	// roomForm := tview.NewForm().
+	// 	AddInputField(" Room Name: ", "", 10, nil, nil).
+	// 	AddInputField(" Room Password: ", "", 10, nil, nil).
+	// 	AddDropDown(" Add or Delete Room ", []string{"Add", "Delete"}, 0, nil).
+	// 	AddButton(" Execute ", func() {
+	// 		// do something
+	// 	})
 
 	roomList := tview.NewList().
 		AddItem("Home", "Home Main Menu", 'h', nil)
