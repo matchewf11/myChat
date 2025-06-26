@@ -6,12 +6,12 @@ CREATE TABLE IF NOT EXISTS users (
     last_login TEXT NOT NULL
 );
 
--- CREATE TABLE IF NOT EXISTS rooms (
---     id INTEGER PRIMARY KEY AUTOINCREMENT,
---     room_name TEXT NOT NULL UNIQUE CHECK(length(room_name) <= 16),
---     room_password TEXT NOT NULL,
---     created_at TEXT DEFAULT (datetime('now'))
--- );
+CREATE TABLE IF NOT EXISTS rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_name TEXT NOT NULL UNIQUE CHECK(length(room_name) <= 16),
+    room_password TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+);
 
 -- CREATE TABLE IF NOT EXISTS user_rooms (
 --     user_id INTEGER NOT NULL,
