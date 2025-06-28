@@ -1,7 +1,10 @@
 package db
 
 import (
+	_ "github.com/tursodatabase/go-libsql"
+
 	"database/sql"
+
 	_ "embed"
 )
 
@@ -9,7 +12,7 @@ import (
 var createTableSql string
 
 func InitDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "db/myChatDb")
+	db, err := sql.Open("libsql", "db/myChatDb")
 	if err != nil {
 		return nil, err
 	}
