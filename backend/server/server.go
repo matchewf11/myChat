@@ -84,6 +84,11 @@ func (s *server) ListenConnection(conn net.Conn) {
 		req.conn = conn
 		s.incoming <- req
 	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 func (s *server) HandleChan() { // Finish this!!!!!!!
