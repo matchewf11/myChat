@@ -77,7 +77,9 @@ func ListenServer(
 			}
 
 			for _, room := range update.Rooms {
-				roomList.AddItem(room.Name, "password will go here", 'c', nil)
+				view.App.QueueUpdateDraw(func() {
+					roomList.AddItem(room.Name, "password will go here", 'c', nil)
+				})
 			}
 
 		case "new_post":
