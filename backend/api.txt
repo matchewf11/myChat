@@ -1,0 +1,43 @@
+This is the stuff you can send to api
+    string `json:"method"`
+	string `json:"username"`
+	string `json:"password"`
+	string `json:"room_name"`
+	string `json:"room_pass"`
+	string `json:"body"`
+
+To sign up 
+	method: LOGIN
+	username: ---
+	password: ---
+	
+	status: "signed up" or "logged in"
+	List of
+	posts: <list of these> {
+		Author string `json:"author"`
+		Body   string `json:"body"`
+		Date   string `json:"date"`
+	}
+	rooms: <list of these> {
+		name string
+	}
+	
+
+To make a post
+	method: POST
+	username: 
+	password:
+	body: 
+
+	"new_post" ->  post
+
+To make a room
+	method: ROOM
+	username
+	password
+	room_name
+
+	"new_room" -> room
+
+What you get back
+	error: potential err msg

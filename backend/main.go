@@ -1,35 +1,39 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log"
+	"myChat/backend/db"
+	"myChat/backend/server"
 	"net"
 )
 
+// Starting point of the server
 func main() {
 
 	ln, err := net.Listen("tcp", ":9000")
 	if err != nil {
-		fmt.Println("err creating server:", err)
+		log.Fatal(err.Error())
 	}
 	defer ln.Close()
 
-	db, err := initDb()
+	db, err := db.InitDB()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	defer db.Close()
 
-	serv := newServer(db)
+	svr := server.InitServer(db)
+	go svr.HandleChan()
 
 	fmt.Println("Server listening @ :9000")
 
 	for {
 		if conn, err := ln.Accept(); err != nil {
-			fmt.Println("accept error:", err)
-			continue
+			log.Fatal(err)
 		} else {
-			go serv.handleConn(conn)
+			go svr.ListenConnection(conn)
 		}
 	}
 }
