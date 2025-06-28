@@ -83,7 +83,9 @@ func ListenServer(
 		case "new_post":
 			fmt.Fprintf(textView, "%s: %s\n%s\n", update.Post.Author, update.Post.Date, update.Post.Body)
 		case "new_room":
-			roomList.AddItem(update.Room.Name, "password will go here", 'c', nil)
+			view.App.QueueUpdateDraw(func() {
+				roomList.AddItem(update.Room.Name, "password will go here", 'c', nil)
+			})
 		default:
 			// write an err somewhere
 		}

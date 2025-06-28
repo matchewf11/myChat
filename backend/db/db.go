@@ -1,18 +1,17 @@
 package db
 
 import (
-	_ "github.com/tursodatabase/go-libsql"
-
 	"database/sql"
 
 	_ "embed"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed createTables.sql
 var createTableSql string
 
 func InitDB() (*sql.DB, error) {
-	db, err := sql.Open("libsql", "db/myChatDb")
+	db, err := sql.Open("sqlite3", "db/myChatDb")
 	if err != nil {
 		return nil, err
 	}

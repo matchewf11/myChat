@@ -169,7 +169,7 @@ func (s *server) sendLoginInfo(conn net.Conn, status string) {
 }
 
 func (s *server) getRooms() []room {
-	roomQry, err := s.db.Query(`SELECT name FROM rooms`)
+	roomQry, err := s.db.Query(`SELECT room_name FROM rooms`)
 	crashIfErr(err)
 	defer roomQry.Close()
 
